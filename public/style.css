@@ -1,0 +1,130 @@
+/* 흰 바탕에 검은 글씨와 괘선만 쓰는 흑백 테마. 수입/지출은 색 대신 +, - 부호로 구분한다. */
+:root {
+    --paper: #FFFFFF;
+    --sheet: #FFFFFF;
+    --ink: #000000;
+    --muted: #555555;
+    --rule: #D4D4D4;
+    --green: #000000;
+    --expense: #000000;
+    --income: #000000;
+    --row: 2.75rem;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+a { color: var(--green); }
+[hidden] { display: none !important; }
+
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.expense { color: var(--expense); }
+.income { color: var(--income); }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+
+.wrap { max-width: 60rem; margin: 0 auto; padding: 0 1.25rem 4rem; }
+
+/* 머리 */
+.top {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem;
+    padding: 1.25rem 0 1rem;
+    border-bottom: 3px double var(--green);
+}
+.top h1 { color: var(--green); margin-right: auto; }
+.top .who { font-size: 0.875rem; color: var(--muted); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 1rem 0 1.5rem; }
+.tabs button {
+    background: none; border: 1px solid transparent; border-radius: 3px;
+    padding: 0.4rem 0.9rem; color: var(--muted);
+}
+.tabs button[aria-selected="true"] { background: #000; border-color: #000; color: #fff; font-weight: 600; }
+
+/* 입력 */
+button, input, select, textarea { font: inherit; color: inherit; }
+input, select, textarea {
+    background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 0.45rem 0.6rem; min-width: 0;
+}
+button { cursor: pointer; }
+.btn {
+    background: var(--green); color: #fff; border: 1px solid var(--green); border-radius: 3px;
+    padding: 0.45rem 1rem; font-weight: 600;
+}
+.btn.line { background: none; color: var(--green); }
+.link { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; font-size: 0.875rem; }
+.link:hover { color: #000; }
+:focus-visible { outline: 2px solid var(--income); outline-offset: 2px; }
+
+label { display: grid; gap: 0.2rem; font-size: 0.875rem; color: var(--muted); }
+label > * { font-size: 1rem; color: var(--ink); }
+.form { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-bottom: 1.25rem; }
+.form .grow { flex: 1 1 10rem; }
+.form input[type="number"] { width: 9rem; }
+
+/* 알림 */
+#notice {
+    position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 0.6rem 1.1rem; border-radius: 3px;
+    max-width: calc(100vw - 2rem); z-index: 10;
+}
+#notice.error { background: #fff; color: #000; border: 2px solid #000; font-weight: 600; }
+
+/* 장부: 줄마다 괘선이 그어진 표 */
+.ledger { width: 100%; border-collapse: collapse; background: var(--sheet); border-top: 2px solid var(--green); }
+.ledger th {
+    font-size: 0.8125rem; font-weight: 600; color: var(--green); text-align: left;
+    padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--green);
+}
+.ledger th.num { text-align: right; }
+.ledger td { height: var(--row); padding: 0 0.75rem; border-bottom: 1px solid var(--rule); }
+.ledger td.date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger .empty td { color: var(--muted); text-align: center; height: calc(var(--row) * 2); }
+.ledger tfoot td { font-weight: 600; border-bottom: 2px solid var(--green); }
+.scroll { overflow-x: auto; }
+
+section { margin-bottom: 2.5rem; }
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 2.5rem; }
+
+/* 이번 달 요약: 통장 맨 윗줄처럼 */
+.statement { background: var(--sheet); border-top: 2px solid var(--green); border-bottom: 2px solid var(--green); padding: 1.25rem 1rem; }
+.statement .balance { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.statement dl { display: flex; flex-wrap: wrap; gap: 0.25rem 2.5rem; margin: 0.75rem 0 0; }
+.statement dl div { display: flex; gap: 0.6rem; align-items: baseline; }
+.statement dt { color: var(--muted); font-size: 0.875rem; }
+.statement dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* 막대: 괘선 위에 형광펜으로 칠한 것처럼 */
+.bar { position: relative; height: 0.5rem; background: var(--rule); margin-top: 0.3rem; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: #777777; max-width: 100%; }
+/* 80% 이상은 빗금, 초과는 검게 칠한다 */
+.bar.warning i { background: repeating-linear-gradient(135deg, #000 0 3px, #fff 3px 6px); }
+.bar.exceeded i { background: var(--expense); }
+.meter { padding: 0.6rem 0; border-bottom: 1px solid var(--rule); }
+.meter .row { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+.meter .row span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pager { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; }
+
+/* 로그인 */
+.auth { max-width: 22rem; margin: 12vh auto 0; padding: 0 1.25rem; }
+.auth h1 { color: var(--green); font-size: 2rem; border-bottom: 3px double var(--green); padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+.auth form { display: grid; gap: 0.9rem; margin: 1.5rem 0 1rem; }
+
+@media (max-width: 40rem) {
+    .statement .balance { font-size: 2rem; }
+    .ledger th, .ledger td { padding-left: 0.5rem; padding-right: 0.5rem; }
+    .hide-narrow { display: none; }
+}

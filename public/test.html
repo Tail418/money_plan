@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API 테스트 - 가계부</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .wrap { max-width: 72rem; }
+        .bench { display: grid; grid-template-columns: 20rem minmax(0, 1fr); gap: 2rem; margin-top: 1.5rem; }
+        .list h2 { color: var(--green); border-bottom: 1px solid var(--green); padding-bottom: 0.2rem; margin: 1.25rem 0 0; }
+        .list h2:first-child { margin-top: 0; }
+        .list button {
+            display: grid; grid-template-columns: 3.6rem 1fr; gap: 0.5rem; width: 100%; text-align: left;
+            background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 0.4rem 0.25rem;
+        }
+        .list button:hover, .list button[aria-current="true"] { background: #F0F0F0; }
+        .list button[aria-current="true"] { box-shadow: inset 3px 0 0 var(--green); }
+        .list .path { font-size: 0.875rem; word-break: break-all; }
+        .list .desc { grid-column: 2; font-size: 0.8125rem; color: var(--muted); }
+        .method { font-size: 0.75rem; font-weight: 700; padding-top: 0.15rem; }
+        .request { position: sticky; top: 1rem; align-self: start; }
+        .line { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+        .line input { flex: 1; }
+        textarea, pre {
+            width: 100%; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 0.875rem; line-height: 1.5;
+        }
+        textarea { min-height: 9rem; resize: vertical; }
+        pre {
+            margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-top: 2px solid var(--green);
+            padding: 0.75rem; min-height: 12rem; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word;
+        }
+        .status { display: flex; gap: 1rem; align-items: baseline; margin: 1.25rem 0 0.4rem; }
+        .status strong.bad { text-decoration: underline; }
+        @media (max-width: 52rem) { .bench { grid-template-columns: 1fr; } .request { position: static; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="top">
+        <h1>API 테스트</h1>
+        <span class="who" id="who">로그인 상태 확인 중</span>
+        <a class="small" href="/">가계부로 돌아가기</a>
+    </header>
+    <p class="muted small" style="margin-top:0.75rem">
+        왼쪽에서 API를 고르면 예시 값이 채워집니다. 경로의 <code>:id</code>는 실제 번호로 바꾸고 보내세요.
+        로그인하지 않았다면 <code>/auth/signup</code>, <code>/auth/login</code>을 먼저 보내세요. 로그인은 가계부 화면과 같은 세션을 씁니다.
+    </p>
+
+    <div class="bench">
+        <nav class="list" id="list" aria-label="API 목록"></nav>
+
+        <section class="request">
+            <form id="form">
+                <div class="line">
+                    <select id="method" aria-label="메서드">
+                        <option>GET</option><option>POST</option><option>PATCH</option><option>DELETE</option>
+                    </select>
+                    <input id="path" aria-label="경로" required spellcheck="false">
+                    <button class="btn">보내기</button>
+                </div>
+                <label id="body-field">보내는 값 (JSON)
+                    <textarea id="body" spellcheck="false"></textarea>
+                </label>
+            </form>
+            <div class="status">
+                <strong id="code">응답</strong>
+                <span class="small muted" id="time"></span>
+            </div>
+            <pre id="response">아직 보낸 요청이 없습니다.</pre>
+        </section>
+    </div>
+</div>
+
+<script>
+const now = new Date();
+const pad = n => String(n).padStart(2, '0');
+const MONTH = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+const TODAY = `${MONTH}-${pad(now.getDate())}`;
+
+// [메서드, 경로, 설명, 예시 본문]
+const API = {
+    auth: [
+        ['POST', '/auth/signup', '회원가입', { id: 'tester', password: 'password1234', name: '테스터' }],
+        ['POST', '/auth/login', '로그인', { id: 'tester', password: 'password1234' }],
+        ['POST', '/auth/logout', '로그아웃'],
+        ['GET', '/auth/me', '내 정보 조회'],
+        ['PATCH', '/auth/me', '내 정보 수정', { name: '새 이름', description: '소개' }],
+        ['PATCH', '/auth/me/password', '비밀번호 변경', { currentPassword: 'password1234', newPassword: 'password5678' }],
+        ['DELETE', '/auth/me', '회원 탈퇴 (내 데이터 모두 삭제)']
+    ],
+    transactions: [
+        ['POST', '/transactions', '거래 등록', { type: 'expense', amount: 12000, date: TODAY, categoryId: 1, accountId: null, memo: '점심' }],
+        ['POST', '/transactions/bulk', '여러 건 일괄 등록', { transactions: [
+            { type: 'expense', amount: 1500, date: TODAY, categoryId: 2, memo: '버스' },
+            { type: 'expense', amount: 4500, date: TODAY, categoryId: 1, memo: '커피' }
+        ] }],
+        ['GET', `/transactions?month=${MONTH}&page=1&limit=20`, '목록 조회 (from, to, type, categoryId, accountId, q)'],
+        ['GET', '/transactions/recent?limit=5', '최근 거래 N건'],
+        ['GET', `/transactions/export?month=${MONTH}`, 'CSV 내보내기'],
+        ['GET', '/transactions/:id', '상세 조회'],
+        ['PATCH', '/transactions/:id', '수정', { amount: 13000, memo: '점심 (수정)' }],
+        ['DELETE', '/transactions/:id', '삭제']
+    ],
+    categories: [
+        ['POST', '/categories', '생성', { name: '카페', type: 'expense' }],
+        ['GET', '/categories?type=expense', '목록 조회'],
+        ['PATCH', '/categories/:id', '수정', { name: '카페/간식' }],
+        ['DELETE', '/categories/:id', '삭제 (거래 연결 시 차단)'],
+        ['GET', '/categories/:id/transactions', '해당 카테고리 거래 목록'],
+        ['GET', `/categories/:id/summary?month=${MONTH}`, '기간별 합계와 거래 건수']
+    ],
+    accounts: [
+        ['POST', '/accounts', '결제수단 등록', { name: '국민은행 통장', type: 'bank', initialBalance: 100000 }],
+        ['GET', '/accounts', '목록 조회 (현재 잔액 포함)'],
+        ['PATCH', '/accounts/:id', '수정', { name: '새 이름' }],
+        ['DELETE', '/accounts/:id', '삭제 (거래 연결 시 차단)'],
+        ['GET', `/accounts/:id/balance?date=${TODAY}`, '특정 시점 잔액'],
+        ['GET', '/accounts/:id/transactions', '해당 결제수단 거래 목록'],
+        ['POST', '/accounts/transfer', '계좌 간 이체', { fromAccountId: 1, toAccountId: 2, amount: 30000, date: TODAY }]
+    ],
+    budgets: [
+        ['POST', '/budgets', '예산 설정', { month: MONTH, categoryId: 1, amount: 300000 }],
+        ['GET', `/budgets?month=${MONTH}`, '목록 조회'],
+        ['PATCH', '/budgets/:id', '금액 수정', { amount: 400000 }],
+        ['DELETE', '/budgets/:id', '삭제'],
+        ['GET', `/budgets/status?month=${MONTH}`, '예산 대비 지출 소진율'],
+        ['GET', `/budgets/alerts?month=${MONTH}`, '초과 또는 80% 이상 쓴 예산'],
+        ['POST', '/budgets/copy-previous', '전월 예산을 복사', { month: MONTH }]
+    ],
+    stats: [
+        ['GET', `/stats/monthly?month=${MONTH}`, '월 총수입, 총지출, 잔액'],
+        ['GET', `/stats/daily?month=${MONTH}`, '일별 수입·지출'],
+        ['GET', `/stats/by-category?month=${MONTH}&type=expense`, '카테고리별 비중'],
+        ['GET', '/stats/trend?months=6', '최근 N개월 추이'],
+        ['GET', `/stats/top-expenses?month=${MONTH}&limit=5`, '지출 상위 N건'],
+        ['GET', `/stats/by-account?month=${MONTH}`, '결제수단별 사용액']
+    ]
+};
+
+const $ = id => document.getElementById(id);
+const list = $('list');
+
+// 목록 그리기 (textContent만 써서 값을 그대로 넣는다)
+Object.entries(API).forEach(([group, items]) => {
+    const title = document.createElement('h2');
+    title.textContent = `${group} (${items.length})`;
+    list.append(title);
+
+    items.forEach(([method, path, desc, body]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        const m = Object.assign(document.createElement('span'), { className: `method ${method}`, textContent: method });
+        const p = Object.assign(document.createElement('span'), { className: 'path', textContent: path.split('?')[0] });
+        const d = Object.assign(document.createElement('span'), { className: 'desc', textContent: desc });
+        button.append(m, p, d);
+        button.addEventListener('click', () => {
+            list.querySelectorAll('[aria-current]').forEach(el => el.removeAttribute('aria-current'));
+            button.setAttribute('aria-current', 'true');
+            $('method').value = method;
+            $('path').value = path;
+            $('body').value = body ? JSON.stringify(body, null, 2) : '';
+            toggleBody();
+            $('path').focus();
+        });
+        list.append(button);
+    });
+});
+
+function toggleBody() {
+    const method = $('method').value;
+    $('body-field').hidden = method === 'GET' || method === 'DELETE';
+}
+$('method').addEventListener('change', toggleBody);
+
+async function refreshWho() {
+    const res = await fetch('/auth/me');
+    $('who').textContent = res.ok ? `${(await res.json()).id} 로 로그인됨` : '로그인하지 않음';
+}
+
+$('form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const method = $('method').value;
+    const path = $('path').value.trim();
+    const code = $('code'), out = $('response');
+
+    if (path.includes(':id')) {
+        code.textContent = '보내지 않음'; code.className = 'bad';
+        out.textContent = '경로의 :id 를 실제 번호로 바꿔 주세요. 번호는 목록 조회 응답의 id 에서 확인할 수 있습니다.';
+        return;
+    }
+
+    const init = { method };
+    if (!$('body-field').hidden && $('body').value.trim()) {
+        try {
+            init.body = JSON.stringify(JSON.parse($('body').value));
+        } catch (error) {
+            code.textContent = '보내지 않음'; code.className = 'bad';
+            out.textContent = `보내는 값이 올바른 JSON이 아닙니다.\n${error.message}`;
+            return;
+        }
+        init.headers = { 'Content-Type': 'application/json' };
+    }
+
+    const started = performance.now();
+    try {
+        const res = await fetch(path, init);
+        const text = await res.text();
+        $('time').textContent = `${method} ${path} · ${Math.round(performance.now() - started)}ms`;
+        code.textContent = `${res.status} ${res.statusText}`;
+        code.className = res.ok ? 'ok' : 'bad';
+        try { out.textContent = JSON.stringify(JSON.parse(text), null, 2); }
+        catch { out.textContent = text || '(본문 없음)'; }
+    } catch (error) {
+        code.textContent = '연결 실패'; code.className = 'bad';
+        out.textContent = `서버에 연결하지 못했습니다. 서버가 켜져 있는지 확인하세요.\n${error.message}`;
+    }
+    refreshWho();
+});
+
+list.querySelector('button:nth-of-type(4)').click();   // 처음에는 GET /auth/me
+refreshWho();
+</script>
+</body>
+</html>

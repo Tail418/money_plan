@@ -1,0 +1,18 @@
+{
+  "development": {
+    "username": "root",
+    "password": "K71213843@k",
+    "database": "money_plan",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "logging": false
+  },
+  "test": {
+    "username": "root",
+    "password": "K71213843@k",
+    "database": "money_plan_test",
+    "host": "127.0.0.1",
+    "dialect": "mysql",
+    "logging": false
+  }
+}

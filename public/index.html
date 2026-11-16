@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>가계부</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 로그인 / 회원가입 -->
+<main class="auth" id="auth" hidden>
+    <h1>가계부</h1>
+    <p class="muted" id="auth-lead">쓴 돈과 번 돈을 한 줄씩 적어 두는 곳.</p>
+    <form id="auth-form">
+        <label>아이디 <input name="id" autocomplete="username" required></label>
+        <label id="name-field" hidden>이름 <input name="name" autocomplete="name"></label>
+        <label>비밀번호 <input name="password" type="password" autocomplete="current-password" minlength="8" required></label>
+        <button class="btn" id="auth-submit">로그인</button>
+    </form>
+    <button class="link" id="auth-toggle" type="button">처음이면 회원가입</button>
+    <p class="small" style="margin-top:2rem"><a href="test.html">로그인 없이 API 테스트 하기</a></p>
+</main>
+
+<div class="wrap" id="app" hidden>
+    <header class="top">
+        <h1>가계부</h1>
+        <label>보는 달 <input type="month" id="month"></label>
+        <span class="who"><span id="who"></span> 님</span>
+        <a class="small" href="test.html">API 테스트</a>
+        <button class="link" id="logout" type="button">로그아웃</button>
+    </header>
+
+    <nav class="tabs" role="tablist">
+        <button role="tab" data-view="home">이번 달</button>
+        <button role="tab" data-view="ledger">거래</button>
+        <button role="tab" data-view="budget">예산</button>
+        <button role="tab" data-view="manage">결제수단과 카테고리</button>
+    </nav>
+
+    <!-- 이번 달 -->
+    <main id="view-home" hidden>
+        <section class="statement">
+            <p class="muted small" id="home-label"></p>
+            <p class="balance" id="home-balance"></p>
+            <dl>
+                <div><dt>수입</dt><dd class="income" id="home-income"></dd></div>
+                <div><dt>지출</dt><dd class="expense" id="home-expense"></dd></div>
+            </dl>
+        </section>
+        <div class="split">
+            <section>
+                <h2>어디에 썼나</h2>
+                <div id="home-categories"></div>
+            </section>
+            <section>
+                <h2>예산이 빠듯한 곳</h2>
+                <div id="home-alerts"></div>
+            </section>
+        </div>
+        <section>
+            <h2>최근 거래</h2>
+            <div class="scroll"><table class="ledger" id="home-recent"></table></div>
+        </section>
+    </main>
+
+    <!-- 거래 -->
+    <main id="view-ledger" hidden>
+        <section>
+            <h2>거래 적기</h2>
+            <form class="form" id="tx-form">
+                <label>구분
+                    <select name="type"><option value="expense">지출</option><option value="income">수입</option></select>
+                </label>
+                <label>날짜 <input name="date" type="date" required></label>
+                <label>금액 <input name="amount" type="number" min="1" step="1" required></label>
+                <label>카테고리 <select name="categoryId" required></select></label>
+                <label>결제수단 <select name="accountId"></select></label>
+                <label class="grow">메모 <input name="memo" maxlength="200"></label>
+                <button class="btn">거래 적기</button>
+            </form>
+        </section>
+        <section>
+            <form class="form" id="search-form">
+                <label class="grow">메모 검색 <input name="q" type="search" placeholder="예: 점심"></label>
+                <button class="btn line">검색</button>
+                <a class="small" id="export-link" href="#">이 달 거래 CSV로 받기</a>
+            </form>
+            <div class="scroll"><table class="ledger" id="tx-table"></table></div>
+            <div class="pager">
+                <button class="btn line" id="prev" type="button">이전</button>
+                <span class="small muted" id="page-info"></span>
+                <button class="btn line" id="next" type="button">다음</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- 예산 -->
+    <main id="view-budget" hidden>
+        <section>
+            <h2>예산 정하기</h2>
+            <form class="form" id="budget-form">
+                <label>카테고리 <select name="categoryId" required></select></label>
+                <label>한 달 예산 <input name="amount" type="number" min="1" step="1" required></label>
+                <button class="btn">예산 정하기</button>
+                <button class="btn line" id="copy-budget" type="button">지난달 예산 가져오기</button>
+            </form>
+        </section>
+        <section>
+            <h2 id="budget-title"></h2>
+            <div id="budget-list"></div>
+        </section>
+    </main>
+
+    <!-- 결제수단과 카테고리 -->
+    <main id="view-manage" hidden>
+        <section>
+            <h2>결제수단</h2>
+            <div class="scroll"><table class="ledger" id="account-table"></table></div>
+        </section>
+        <div class="split">
+            <section>
+                <h2>결제수단 추가</h2>
+                <form class="form" id="account-form">
+                    <label class="grow">이름 <input name="name" required placeholder="예: 국민은행 통장"></label>
+                    <label>종류
+                        <select name="type">
+                            <option value="bank">통장</option><option value="card">카드</option>
+                            <option value="cash">현금</option><option value="etc">기타</option>
+                        </select>
+                    </label>
+                    <label>시작 잔액 <input name="initialBalance" type="number" step="1" value="0"></label>
+                    <button class="btn">결제수단 추가</button>
+                </form>
+            </section>
+            <section>
+                <h2>이체</h2>
+                <form class="form" id="transfer-form">
+                    <label>보내는 곳 <select name="fromAccountId" required></select></label>
+                    <label>받는 곳 <select name="toAccountId" required></select></label>
+                    <label>금액 <input name="amount" type="number" min="1" step="1" required></label>
+                    <button class="btn">이체하기</button>
+                </form>
+            </section>
+        </div>
+        <section>
+            <h2>카테고리</h2>
+            <form class="form" id="category-form">
+                <label>구분
+                    <select name="type"><option value="expense">지출</option><option value="income">수입</option></select>
+                </label>
+                <label class="grow">이름 <input name="name" required placeholder="예: 카페"></label>
+                <button class="btn">카테고리 추가</button>
+            </form>
+            <div class="scroll"><table class="ledger" id="category-table"></table></div>
+        </section>
+    </main>
+</div>
+
+<div id="notice" role="status" aria-live="polite" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
